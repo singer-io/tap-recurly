@@ -1,4 +1,3 @@
-
 #
 # Default.
 #
@@ -10,7 +9,7 @@ default: build
 #
 
 # Build.
-build: 
+build:
 	@pip3 install .
 
 # Dev.
@@ -21,12 +20,12 @@ dev:
 release:
 	@python3 setup.py sdist upload
 
-# Test.
-test:
+# Lint.
+lint:
 	pylint tap_recurly -d missing-docstring,too-few-public-methods,invalid-name,too-many-instance-attributes,too-many-arguments
 
 # Discover.
-disc: 
+disc:
 	@tap-recurly -c config.json --discover > catalog.json
 
 #
@@ -37,5 +36,5 @@ disc:
 .PHONY: dev
 .PHONY: release
 .PHONY: schema
-.PHONY: test
+.PHONY: lint
 .PHONY: disc
