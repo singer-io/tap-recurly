@@ -11,9 +11,6 @@ from base import RecurlyBaseTest
 class BookmarksTest(RecurlyBaseTest):
     """Test tap bookmarks."""
 
-    # TODO | BUG? Bookmark and Replication Keys  have slightly differnt dt formats
-    #             Bookmark does not have fractional seconds, rep keys do (but alwasy 000000)?
-
     @staticmethod
     def name():
         return "tt_recurly_bookmarks"
@@ -35,13 +32,23 @@ class BookmarksTest(RecurlyBaseTest):
         """
         Testing that the tap sets state based on max replication key value for an
         incremental stream, and that it syncs inlcusively on the preious state.
+
+        NOTE: Bookmark and Replication Keys  have slightly differnt dt formats.
+              Bookmark does not have fractional seconds, rep keys do (but always .000000 ?).
+
+              The coupons stream is not under test.
+
         """
-        print("Bookmarks Test for tap-google-ads")
+        print("Bookmarks Test for tap-recurly")
 
         conn_id = connections.ensure_connection(self)
 
-        streams_under_test = self.expected_streams()
-        streams_under_test = {'invoices'} # TODO put back
+        streams_under_test = self.expected_streams() - {
+            'coupon_redemptions',  # does not save bookmarks - different key ?
+            'coupons',  # does not save bookmarks - no data was returned
+            'plans_add_ons',  # does not save bookmarks - child stream ?
+            'billing_info',  # BUG - saves bookmarks but does not pick back up from that bookmark
+        }
 
         # Run a discovery job
         found_catalogs_1 = self.run_and_verify_check_mode(conn_id)
@@ -62,23 +69,18 @@ class BookmarksTest(RecurlyBaseTest):
         bookmarks_1 = state_1.get('bookmarks')
         currently_syncing_1 = state_1.get('currently_syncing')
 
-        # TODO make generic for other streams if there's time
-        # inject a simulated state value for each report stream under test
-        invoice_datetime = dt.strptime(
-            state_1['bookmarks']['invoices']['updated_at'], self.BOOKMARK_KEY_FORMAT
-        )
-        new_invoice_state = dt.strftime(
-            invoice_datetime - timedelta(days=7), self.BOOKMARK_KEY_FORMAT
-        )
-        injected_state_by_stream = {
-            'invoices': {'updated_at': new_invoice_state},
-        }
-        manipulated_state = {
-            'bookmarks': {
-                stream: injected_state_by_stream[stream]
-                for stream in streams_under_test
-            }
-        }
+        # inject a simulated state value for each stream under test
+        injected_state_by_stream = dict()
+        for stream in streams_under_test:
+            replication_key = list(self.expected_replication_keys()[stream])[0]  # assumes no compound keys
+            state_1_bookmark_datetime = dt.strptime(
+                state_1['bookmarks'][stream][replication_key], self.BOOKMARK_KEY_FORMAT
+            )
+            new_state = dt.strftime(
+                state_1_bookmark_datetime - timedelta(days=7), self.BOOKMARK_KEY_FORMAT
+            )
+            injected_state_by_stream[stream] = {replication_key: new_state}
+        manipulated_state = {'bookmarks': injected_state_by_stream}
         menagerie.set_state(conn_id, manipulated_state)
 
         # Run another sync with the manipulated state
@@ -90,7 +92,6 @@ class BookmarksTest(RecurlyBaseTest):
         bookmarks_2 = state_2.get('bookmarks')
         currently_syncing_2 = state_2.get('currently_syncing')
 
-        # TODO assertions for this
         # Run another sync without manipulating state
         _ = self.run_and_verify_sync(conn_id)
 
@@ -136,15 +137,17 @@ class BookmarksTest(RecurlyBaseTest):
                 records_1 = [message['data'] for message in synced_records_1[stream]['messages']]
                 records_2 = [message['data'] for message in synced_records_2[stream]['messages']]
                 records_3 = [message['data'] for message in synced_records_3[stream]['messages']]
-                replication_key_values_1 = [record.get(expected_replication_key) for record in records_1]
-                replication_key_values_2 = [record.get(expected_replication_key) for record in records_2]
-                replication_key_values_3 = [record.get(expected_replication_key) for record in records_3]
-                primary_key_values_1 = [record.get(expected_primary_key) for record in records_1]
-                primary_key_values_2 = [record.get(expected_primary_key) for record in records_2]
-                primary_key_values_3 = [record.get(expected_primary_key) for record in records_3]
                 record_count_1 = len(records_1)
                 record_count_2 = len(records_2)
                 record_count_3 = len(records_3)
+
+                replication_key_values_1 = [record.get(expected_replication_key) for record in records_1]
+                replication_key_values_2 = [record.get(expected_replication_key) for record in records_2]
+                replication_key_values_3 = [record.get(expected_replication_key) for record in records_3]
+
+                primary_key_values_1 = [record.get(expected_primary_key) for record in records_1]
+                primary_key_values_2 = [record.get(expected_primary_key) for record in records_2]
+                primary_key_values_3 = [record.get(expected_primary_key) for record in records_3]
 
                 stream_bookmark_1 = bookmarks_1.get(stream)
                 stream_bookmark_2 = bookmarks_2.get(stream)
@@ -159,6 +162,7 @@ class BookmarksTest(RecurlyBaseTest):
                     stream_bookmark_3.get(expected_replication_key),
                     self.BOOKMARK_KEY_FORMAT
                 )
+
                 # for each sync...
                 for index, sync_results in enumerate([(stream_bookmark_1, replication_key_values_1),
                                                            (stream_bookmark_2, replication_key_values_2),
@@ -192,10 +196,12 @@ class BookmarksTest(RecurlyBaseTest):
                 # Verify records in the 1st sync with replication key values >= parsed_manipulated_state
                 # are replicated in the 2nd sync
                 expected_records = {primary_key_value: replication_key_value
-                                    for primary_key_value, replication_key_value in zip(primary_key_values_1, replication_key_values_1) if
-                                    dt.strptime(replication_key_value, self.REPLICATION_KEY_FORMAT) >= parsed_manipulated_state}
+                                    for primary_key_value, replication_key_value
+                                    in zip(primary_key_values_1, replication_key_values_1)
+                                    if dt.strptime(replication_key_value, self.REPLICATION_KEY_FORMAT) >= parsed_manipulated_state}
                 actual_records = {primary_key_value: replication_key_value
-                                  for primary_key_value, replication_key_value in zip(primary_key_values_2, replication_key_values_2)}
+                                  for primary_key_value, replication_key_value
+                                  in zip(primary_key_values_2, replication_key_values_2)}
                 self.assertEqual(expected_records, actual_records)
 
                 # Verify records in the 2nd sync with replication key values = saved state
@@ -211,6 +217,7 @@ class BookmarksTest(RecurlyBaseTest):
                 self.assertGreater(record_count_1, 0)
                 self.assertGreater(record_count_2, 0)
                 self.assertGreater(record_count_3, 0)
+
                 print(f"Sync 1:  {record_count_1} {stream} records replicated")
                 print(f"Sync 2:  {record_count_2} {stream} records replicated")
                 print(f"Sync 3:  {record_count_3} {stream} records replicated")

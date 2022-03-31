@@ -44,12 +44,10 @@ class RecurlyBaseTest(unittest.TestCase):
     def get_credentials():
         return {'api_key': os.getenv('TAP_RECURLY_API_KEY')}
 
-
     def get_properties(self): # TODO
         return {'subdomain': os.getenv('TAP_RECURLY_SUBDOMAIN'),
                 'start_date': os.getenv('TAP_RECURLY_START_DATE'),
                 'quota_limit': os.getenv('TAP_RECURLY_QUOTA_LIMIT')}
-
 
     def expected_metadata(self):
         return {
