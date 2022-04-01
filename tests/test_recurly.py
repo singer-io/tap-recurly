@@ -18,15 +18,14 @@ class TestRecurly(RecurlyBaseTest):
         return "tap_tester_recurly_base"
 
     def test_run(self):
-        # Connect to stitch service.
-        runner.run_check_job_and_check_status(self)    
+        # Create a connection
+        self.conn_id = connections.ensure_connection(self)
 
-        # Get and check streams.
-        self.found_catalogs = menagerie.get_catalogs(self.conn_id)
-        self.assertEqual(len(self.found_catalogs), 10, msg="unable to locate schemas for connection {}".format(self.conn_id))
+        # Run a discovery job
+        self.found_catalogs = self.run_and_verify_check_mode(self.conn_id)
 
         # Match streams.
-        our_catalogs = [c for c in self.found_catalogs if c.get('tap_stream_id') in self.expected_sync_streams()]
+        our_catalogs = [c for c in self.found_catalogs if c.get('tap_stream_id') in self.expected_streams()]
         for c in our_catalogs:
             c_annotated = menagerie.get_annotated_schema(self.conn_id, c['stream_id'])
             c_metadata = metadata.to_map(c_annotated['metadata'])
@@ -37,15 +36,17 @@ class TestRecurly(RecurlyBaseTest):
 
         # Run a sync job using orchestrator, verify tap and target exit codes
         # and verify actual rows were synced.
-        first_sync_record_count = self.run_sync(self.conn_id)
+        first_sync_record_count = self.run_and_verify_sync(self.conn_id)
 
         replicated_row_count =  reduce(lambda accum, c : accum + c, first_sync_record_count.values())
         self.assertGreater(replicated_row_count, 0, msg="failed to replicate any data: {}".format(first_sync_record_count))
         print("total replicated row count: {}".format(replicated_row_count))
 
         # Get incremental vs. non-incremental streams.
-        non_incremental_streams = {key for key, value in self.expected_replication_method().items() if value != 'INCREMENTAL'}
-        incremental_streams = {key for key, value in self.expected_replication_method().items() if value == 'INCREMENTAL'}
+        non_incremental_streams = {key for key, value in self.expected_metadata().items()
+                                   if value[self.REPLICATION_METHOD] != self.INCREMENTAL}
+        incremental_streams = {key for key, value in self.expected_metadata().items()
+                                   if value[self.REPLICATION_METHOD] == self.INCREMENTAL}
 
         # Get bookmark and state data for first sync, excluding full table streams.
         first_sync_state = menagerie.get_state(self.conn_id)
@@ -58,7 +59,7 @@ class TestRecurly(RecurlyBaseTest):
         first_min_bookmarks = self.min_bookmarks_by_stream(first_sync_records)
 
         # Run a second sync job using orchestrator.
-        second_sync_record_count = self.run_sync(self.conn_id)
+        second_sync_record_count = self.run_and_verify_sync(self.conn_id)
         
         # Get data about rows synced, excluding full table streams.
         second_sync_records = runner.get_records_from_target_output()
@@ -70,7 +71,7 @@ class TestRecurly(RecurlyBaseTest):
 
         for stream in incremental_streams:
             # get bookmark values from state and target data
-            stream_bookmark_key = self.expected_rks().get(stream, set())
+            stream_bookmark_key = self.expected_replication_keys().get(stream, set())
             assert len(stream_bookmark_key) == 1  # There shouldn't be a compound replication key
             stream_bookmark_key = stream_bookmark_key.pop()
 

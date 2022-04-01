@@ -12,6 +12,16 @@ from singer import metadata
 
 class RecurlyBaseTest(unittest.TestCase):
 
+    AUTOMATIC_FIELDS = "automatic"
+    REPLICATION_KEYS = "valid-replication-keys"
+    PRIMARY_KEYS = "table-key-properties"
+    REPLICATION_METHOD = "forced-replication-method"
+    INCREMENTAL = "INCREMENTAL"
+    FULL_TABLE = "FULL_TABLE"
+    START_DATE_FORMAT = "%Y-%m-%dT00:00:00Z"
+    BOOKMARK_KEY_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
+    REPLICATION_KEY_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
+    start_date = ""
 
     def setUp(self):
         missing_envs = [x for x in [os.getenv('TAP_RECURLY_SUBDOMAIN'),
@@ -22,88 +32,143 @@ class RecurlyBaseTest(unittest.TestCase):
             #pylint: disable=line-too-long
             raise Exception("set TAP_RECURLY_SUBDOMAIN, TAP_RECURLY_API_KEY, TAP_RECURLY_START_DATE, TAP_RECURLY_QUOTA_LIMIT")
 
-        self.conn_id = connections.ensure_connection(self)
-
-
-    def tap_name(self):
+    @staticmethod
+    def tap_name():
         return "tap-recurly"
 
-
-    def get_type(self):
+    @staticmethod
+    def get_type():
         return "platform.recurly"
 
-
-    def get_credentials(self):
+    @staticmethod
+    def get_credentials():
         return {'api_key': os.getenv('TAP_RECURLY_API_KEY')}
 
-
-    def get_properties(self):
-        return {'subdomain': os.getenv('TAP_RECURLY_SUBDOMAIN'), 
+    def get_properties(self): # TODO
+        return {'subdomain': os.getenv('TAP_RECURLY_SUBDOMAIN'),
                 'start_date': os.getenv('TAP_RECURLY_START_DATE'),
                 'quota_limit': os.getenv('TAP_RECURLY_QUOTA_LIMIT')}
 
-
-    def expected_sync_streams(self):
+    def expected_metadata(self):
         return {
-            'accounts',
-            'billing_info',
-            'adjustments',
-            'coupon_redemptions',
-            'coupons',
-            'invoices',
-            'plans',
-            'plans_add_ons',
-            'subscriptions',
-            'transactions'
+            'accounts': {
+                self.PRIMARY_KEYS: {"id"},
+                self.REPLICATION_METHOD: self.INCREMENTAL,
+                self.REPLICATION_KEYS: {"updated_at"},
+            },
+            'adjustments': {
+                self.PRIMARY_KEYS: {"id"},
+                self.REPLICATION_METHOD: self.INCREMENTAL,
+                self.REPLICATION_KEYS: {"updated_at"},
+            },
+            'billing_info': {  # custom fields supported
+                self.PRIMARY_KEYS: {"account_id"},
+                self.REPLICATION_METHOD: self.INCREMENTAL,
+                self.REPLICATION_KEYS: {"updated_at"},
+            },
+            'coupons': {
+                self.PRIMARY_KEYS: {"id"},
+                self.REPLICATION_METHOD: self.INCREMENTAL,
+                self.REPLICATION_KEYS: {"updated_at"},
+            },
+            'coupon_redemptions': {  # undocumented TODO
+                self.PRIMARY_KEYS: {"id"},
+                self.REPLICATION_METHOD: self.INCREMENTAL,
+                self.REPLICATION_KEYS: {"created_at"},
+            },
+            'invoices': {
+                self.PRIMARY_KEYS: {"id"},
+                self.REPLICATION_METHOD: self.INCREMENTAL,
+                self.REPLICATION_KEYS: {"updated_at"},
+            },
+            'plans': {
+                self.PRIMARY_KEYS: {"id"},
+                self.REPLICATION_METHOD: self.INCREMENTAL,
+                self.REPLICATION_KEYS: {"updated_at"},
+            },
+            'plans_add_ons': {
+                self.PRIMARY_KEYS: {"id"},
+                self.REPLICATION_METHOD: self.INCREMENTAL,
+                self.REPLICATION_KEYS: {"updated_at"},
+            },
+            'subscriptions': {  # custom fields supported
+                self.PRIMARY_KEYS: {"id"},
+                self.REPLICATION_METHOD: self.INCREMENTAL,
+                self.REPLICATION_KEYS: {"updated_at"},
+            },
+            'transactions': {
+                self.PRIMARY_KEYS: {"id"},
+                self.REPLICATION_METHOD: self.INCREMENTAL,
+                self.REPLICATION_KEYS: {"collected_at"},
+            },
         }
 
+    def expected_streams(self):
+        return set(self.expected_metadata().keys())
+
+    def expected_primary_keys(self):
+        """
+        return a dictionary with key of table name
+        and value as a set of primary key fields
+        """
+        return {table: properties.get(self.PRIMARY_KEYS, set())
+                for table, properties
+                in self.expected_metadata().items()}
+
+    def expected_replication_keys(self):
+        """
+        return a dictionary with key of table name
+        and value as a set of replication key fields
+        """
+        return {table: properties.get(self.REPLICATION_KEYS, set())
+                for table, properties
+                in self.expected_metadata().items()}
 
     def expected_replication_method(self):
-        return {
-            'accounts': 'INCREMENTAL',
-            'billing_info': 'INCREMENTAL',
-            'adjustments': 'INCREMENTAL',
-            'coupon_redemptions': 'INCREMENTAL',
-            'coupons': 'INCREMENTAL',
-            'invoices': 'INCREMENTAL',
-            'plans': 'INCREMENTAL',
-            'plans_add_ons': 'INCREMENTAL',
-            'subscriptions': 'INCREMENTAL',
-            'transactions': 'INCREMENTAL'
-        }
+        """return a dictionary with key of table name nd value of replication method"""
+        return {table: properties.get(self.REPLICATION_METHOD, None)
+                for table, properties
+                in self.expected_metadata().items()}
 
+    @staticmethod
+    def select_all_streams_and_fields(conn_id, catalogs, select_all_fields: bool = True):
+        """Select all streams and all fields within streams"""
+        for catalog in catalogs:
+            schema = menagerie.get_annotated_schema(conn_id, catalog['stream_id'])
 
-    def expected_pks(self):
-        return {
-            'accounts': {'id'},
-            'billing_info': {'account_id'},
-            'adjustments': {'id'},
-            'coupon_redemptions': {'id'},
-            'coupons': {'id'},
-            'invoices': {'id'},
-            'plans': {'id'},
-            'plans_add_ons': {'id'},
-            'subscriptions': {'id'},
-            'transactions': {'id'}
-        }
+            non_selected_properties = []
+            if not select_all_fields:
+                # get a list of all properties so that none are selected
+                non_selected_properties = schema.get('annotated-schema', {}).get(
+                    'properties', {}).keys()
 
+            connections.select_catalog_and_fields_via_metadata(
+                conn_id, catalog, schema, [], non_selected_properties)
 
-    def expected_rks(self):
-        return {
-            'accounts': {'updated_at'},
-            'billing_info': {'updated_at'},
-            'adjustments': {'updated_at'},
-            'coupon_redemptions': {'created_at'},
-            'coupons': {'updated_at'},
-            'invoices': {'updated_at'},
-            'plans': {'updated_at'},
-            'plans_add_ons': {'updated_at'},
-            'subscriptions': {'updated_at'},
-            'transactions': {'collected_at'}
-        }
+    def run_and_verify_check_mode(self, conn_id):
+        """
+        Run the tap in check mode and verify it succeeds.
+        This should be ran prior to field selection and initial sync.
 
+        Return the connection id and found catalogs from menagerie.
+        """
+        # run in check mode
+        check_job_name = runner.run_check_mode(self, conn_id)
 
-    def run_sync(self, conn_id):
+        # verify check exit codes
+        exit_status = menagerie.get_exit_status(conn_id, check_job_name)
+        menagerie.verify_check_exit_status(self, exit_status, check_job_name)
+
+        found_catalogs = menagerie.get_catalogs(conn_id)
+        self.assertGreater(len(found_catalogs), 0, msg="No catalog produced.")
+
+        found_catalog_names = {found_catalog['stream_name'] for found_catalog in found_catalogs}
+        self.assertSetEqual(self.expected_streams(), found_catalog_names)
+        print("discovered schemas are OK")
+
+        return found_catalogs
+
+    def run_and_verify_sync(self, conn_id):
         """
         Run a sync job and make sure it exited properly.
         Return a dictionary with keys of streams synced
@@ -118,7 +183,8 @@ class RecurlyBaseTest(unittest.TestCase):
 
         # Verify actual rows were synced
         sync_record_count = runner.examine_target_output_file(
-            self, conn_id, self.expected_sync_streams(), self.expected_pks())
+            self, conn_id, self.expected_streams(), self.expected_primary_keys())
+
         return sync_record_count
 
 
@@ -128,7 +194,7 @@ class RecurlyBaseTest(unittest.TestCase):
         for stream, batch in sync_records.items():
 
             upsert_messages = [m for m in batch.get('messages') if m['action'] == 'upsert']
-            stream_bookmark_key = self.expected_rks().get(stream, set())
+            stream_bookmark_key = self.expected_replication_keys().get(stream, set())
             assert len(stream_bookmark_key) == 1  # There shouldn't be a compound replication key
             (stream_bookmark_key, ) = stream_bookmark_key
 
@@ -157,7 +223,7 @@ class RecurlyBaseTest(unittest.TestCase):
         for stream, batch in sync_records.items():
 
             upsert_messages = [m for m in batch.get('messages') if m['action'] == 'upsert']
-            stream_bookmark_key = self.expected_rks().get(stream, set())
+            stream_bookmark_key = self.expected_replication_keys().get(stream, set())
 
             assert len(stream_bookmark_key) == 1  # There shouldn't be a compound replication key
             stream_bookmark_key = stream_bookmark_key.pop()
@@ -174,5 +240,3 @@ class RecurlyBaseTest(unittest.TestCase):
                 if bk_value > max_bookmarks[stream][stream_bookmark_key]:
                     max_bookmarks[stream][stream_bookmark_key] = bk_value
         return max_bookmarks
-
-
