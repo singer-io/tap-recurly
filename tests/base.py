@@ -101,6 +101,11 @@ class RecurlyBaseTest(unittest.TestCase):
                 self.REPLICATION_METHOD: self.INCREMENTAL,
                 self.REPLICATION_KEYS: {"collected_at"},
             },
+            'usages': {
+                self.PRIMARY_KEYS: {"id"},
+                self.REPLICATION_METHOD: self.INCREMENTAL,
+                self.REPLICATION_KEYS: {"recording_timestamp"},
+            },
         }
 
     def expected_streams(self):
