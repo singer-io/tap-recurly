@@ -151,11 +151,11 @@ class CouponRedemptions(Stream):
     # when the coupon redemptions are updated.
     replication_key = "created_at"
     key_properties = ["id"]
-    parent_streams = ["accounts", "subscriptions", "invoices"]
+    parent_stream = ["invoices"]
 
     # It has it's own sync since it uses multiple parent streams.
     def sync(self, state):
-        for stream in self.parent_streams:
+        for stream in self.parent_stream:
             name = "{stream}_{name}".format(stream=stream, name=self.name)
 
             # Define get parent and child functions.
