@@ -114,6 +114,7 @@ Messages are written to standard output following the Singer specification. The 
 - Plans Add Ons
 - Subscriptions
 - Transactions
+- Usages
 
 ### Full Table
 
