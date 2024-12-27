@@ -3,7 +3,7 @@
 from setuptools import setup
 
 setup(name='tap-recurly',
-      version='1.0.0',
+      version='1.0.1',
       description='Singer.io tap for extracting data from the Recurly API',
       author='Stitch',
       url='http://github.com/singer-io/tap-recurly',
@@ -11,7 +11,7 @@ setup(name='tap-recurly',
       py_modules=['tap_recurly'],
       install_requires=[
           'singer-python==5.1.5',
-          'requests==2.32.2',
+          'requests==2.32.3',
           'backoff==1.3.2'
       ],
       extras_require={
