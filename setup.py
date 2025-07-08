@@ -10,9 +10,9 @@ setup(name='tap-recurly',
       classifiers=['Programming Language :: Python :: 3 :: Only'],
       py_modules=['tap_recurly'],
       install_requires=[
-          'singer-python==5.1.5',
-          'requests==2.32.3',
-          'backoff==1.3.2'
+          'singer-python==5.13.2',
+          'requests==2.32.4',
+          'backoff==1.10.0'
       ],
       extras_require={
         'dev': [
