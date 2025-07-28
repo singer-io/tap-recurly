@@ -5,16 +5,16 @@ orbs:
 jobs:
   build:
     docker:
-      - image: 218546966473.dkr.ecr.us-east-1.amazonaws.com/circle-ci:stitch-tap-tester
+      - image: 218546966473.dkr.ecr.us-east-1.amazonaws.com/circle-ci:stitch-tap-tester-uv
     steps:
       - checkout
       - run:
           name: 'Setup virtual env'
           command: |
-            python3 -mvenv /usr/local/share/virtualenvs/tap-recurly
+            uv venv --python 3.9 /usr/local/share/virtualenvs/tap-recurly
             source /usr/local/share/virtualenvs/tap-recurly/bin/activate
-            pip install -U pip setuptools
-            pip install .[dev]
+            uv pip install -U pip setuptools
+            uv pip install .[dev]
       - run:
           name: 'JSON Validator'
           command: |
@@ -23,14 +23,16 @@ jobs:
       - run:
           name: 'pylint'
           command: |
+            apt-get update && apt-get install -y make
             source /usr/local/share/virtualenvs/tap-recurly/bin/activate
             make lint
       - run:
           name: 'Integration Tests'
           command: |
+            source /usr/local/share/virtualenvs/tap-tester/bin/activate
+            uv pip install --upgrade awscli
             aws s3 cp s3://com-stitchdata-dev-deployment-assets/environments/tap-tester/tap_tester_sandbox dev_env.sh
             source dev_env.sh
-            source /usr/local/share/virtualenvs/tap-tester/bin/activate
             run-test --tap=tap-recurly tests
       - slack/notify-on-failure:
           only_for_branches: master
