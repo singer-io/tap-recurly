@@ -217,6 +217,26 @@ class Transactions(Stream):
     key_properties = ["id"]
 
 
+class Usages(Stream):
+    name = "usages"
+    replication_method = "INCREMENTAL"
+    replication_key = "recording_timestamp"
+
+    # Needs its own sync function since it's bookmark is off Subscriptions.
+    def sync(self, state):
+        get_parent = getattr(self.client, "subscriptions")
+        get_child = getattr(self.client, self.name)
+
+        # use the specific `parent_child` bookmark.
+        parents = get_parent("created_at", self.get_bookmark(state, self.name))
+        for parent in parents:
+            self.update_bookmark(state, parent["created_at"], self.name)
+            for add_on in parent["add_ons"]:
+                if add_on["add_on"]["add_on_type"] == "usage":
+                    res = get_child(parent["id"], add_on["add_on"]["id"], self.replication_key)
+                    for item in res:
+                        yield (self.stream, item)
+        self.update_bookmark(state, None, self.name)
 
 STREAMS = {
     "accounts": Accounts,
@@ -228,5 +248,6 @@ STREAMS = {
     "plans": Plans,
     "plans_add_ons": PlansAddOns,
     "subscriptions": Subscriptions,
-    "transactions": Transactions
+    "transactions": Transactions,
+    "usages": Usages
 }

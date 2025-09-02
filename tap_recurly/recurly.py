@@ -20,7 +20,7 @@ class Recurly():
     """ Simple wrapper for Recurly. """
 
     def __init__(self, subdomain, api_key, start_date=None, user_agent=None, quota_limit=100):
-        self.headers = {'Accept': 'application/vnd.recurly.v2018-08-09'}
+        self.headers = {'Accept': 'application/vnd.recurly.v2021-02-25'}
         self.site_id = "subdomain-{subdomain}".format(subdomain=subdomain)
         self.user_agent = user_agent
         self.start_date = start_date
@@ -142,6 +142,17 @@ class Recurly():
         url += "?limit={limit}&sort={column_name}&order=asc"
         url = url.format(site_id=self.site_id,
                          subscription_id=subscription_id,
+                         limit=self.limit,
+                         column_name=column_name)
+        for item in self._get_all(url):
+            yield item
+
+    def usages(self, subscription_id, add_on_id, column_name):
+        url = "sites/{site_id}/subscriptions/{subscription_id}/add_ons/{add_on_id}/usage"
+        url += "?billing_status=all&limit={limit}&sort={column_name}&order=asc"
+        url = url.format(site_id=self.site_id,
+                         subscription_id=subscription_id,
+                         add_on_id=add_on_id,
                          limit=self.limit,
                          column_name=column_name)
         for item in self._get_all(url):
