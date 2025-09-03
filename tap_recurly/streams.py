@@ -61,8 +61,8 @@ class Stream():
 
 
     def load_schema(self):
-        schema_file = "schemas/{}.json".format(self.name)
-        with open(get_abs_path(schema_file)) as f:
+        schema_file = f"schemas/{self.name}.json"
+        with open(get_abs_path(schema_file), encoding='utf-8') as f:
             schema = json.load(f)
         return schema
 
@@ -107,7 +107,7 @@ class Stream():
                 yield (self.stream, item)
 
         else:
-            raise Exception('Replication key not defined for {stream}'.format(stream=self.name))
+            raise Exception(f'Replication key not defined for {self.name}')
 
 
 class Accounts(Stream):
@@ -156,7 +156,7 @@ class CouponRedemptions(Stream):
     # It has it's own sync since it uses multiple parent streams.
     def sync(self, state):
         for stream in self.parent_streams:
-            name = "{stream}_{name}".format(stream=stream, name=self.name)
+            name = f"{stream}_{self.name}"
 
             # Define get parent and child functions.
             get_parent = getattr(self.client, stream)

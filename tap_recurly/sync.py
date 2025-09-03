@@ -3,9 +3,7 @@
 #
 
 import singer
-import singer.metrics as metrics
-from singer import metadata
-from singer import Transformer
+from singer import metadata, metrics, Transformer
 
 #LOGGER = singer.get_logger()
 
