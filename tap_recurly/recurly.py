@@ -21,7 +21,7 @@ class Recurly():
 
     def __init__(self, subdomain, api_key, start_date=None, user_agent=None, quota_limit=100):
         self.headers = {'Accept': 'application/vnd.recurly.v2018-08-09'}
-        self.site_id = "subdomain-{subdomain}".format(subdomain=subdomain)
+        self.site_id = f"subdomain-{subdomain}"
         self.user_agent = user_agent
         self.start_date = start_date
         self.limit = 200
@@ -48,9 +48,12 @@ class Recurly():
                           on_backoff=retry_handler,
                           max_tries=5)
     def _get(self, path):
-        uri = "{uri}{path}".format(uri=self.uri, path=path)
+        uri = f"{self.uri}{path}"
         logger.info("GET request to %s", uri)
-        response = requests.get(uri, headers=self.headers, auth=HTTPBasicAuth(self.api_key, ''))
+        response = requests.get(uri,
+                                headers=self.headers,
+                                auth=HTTPBasicAuth(self.api_key, ''),
+                                timeout=60)
         response.raise_for_status()
 
         limit_remaining = response.headers.get('X-RateLimit-Remaining')
@@ -68,8 +71,7 @@ class Recurly():
                 has_more = json["has_more"]
                 path = json["next"]
                 data = json["data"]
-                for item in data:
-                    yield item
+                yield from data
             except requests.exceptions.HTTPError as err:
                 logger.info("Response returned http error code %s", err.response.status_code)
 
@@ -105,8 +107,7 @@ class Recurly():
                          account_id=account_id,
                          limit=self.limit,
                          column_name=column_name)
-        for item in self._get_all(url):
-            yield item
+        yield from self._get_all(url)
 
     def adjustments(self, column_name, bookmark):
         url = "sites/{site_id}/line_items"
@@ -124,8 +125,7 @@ class Recurly():
                          account_id=account_id,
                          limit=self.limit,
                          column_name=column_name)
-        for item in self._get_all(url):
-            yield item
+        yield from self._get_all(url)
 
     def invoices_coupon_redemptions(self, invoice_id, column_name):
         url = "sites/{site_id}/invoices/{invoice_id}/coupon_redemptions"
@@ -134,8 +134,7 @@ class Recurly():
                          invoice_id=invoice_id,
                          limit=self.limit,
                          column_name=column_name)
-        for item in self._get_all(url):
-            yield item
+        yield from self._get_all(url)
 
     def subscriptions_coupon_redemptions(self, subscription_id, column_name):
         url = "sites/{site_id}/subscriptions/{subscription_id}/coupon_redemptions"
@@ -144,8 +143,7 @@ class Recurly():
                          subscription_id=subscription_id,
                          limit=self.limit,
                          column_name=column_name)
-        for item in self._get_all(url):
-            yield item
+        yield from self._get_all(url)
 
     def coupons(self, column_name, bookmark):
         url = "sites/{site_id}/coupons"
@@ -184,8 +182,7 @@ class Recurly():
                              plan_id=plan["id"],
                              limit=self.limit,
                              column_name=column_name)
-            for item in self._get_all(url):
-                yield item
+            yield from self._get_all(url)
 
     def subscriptions(self, column_name, bookmark):
         url = "sites/{site_id}/subscriptions"

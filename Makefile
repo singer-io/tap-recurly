@@ -22,7 +22,7 @@ release:
 
 # Lint.
 lint:
-	pylint tap_recurly -d missing-docstring,too-few-public-methods,invalid-name,too-many-instance-attributes,too-many-arguments
+	pylint tap_recurly -d broad-exception-raised,missing-docstring,too-few-public-methods,invalid-name,too-many-instance-attributes,too-many-arguments,too-many-positional-arguments
 
 # Discover.
 disc:
