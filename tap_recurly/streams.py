@@ -34,6 +34,7 @@ class Stream():
     replication_method = None
     replication_key = None
     stream = None
+    parent_stream = None
     key_properties = KEY_PROPERTIES
     session_bookmark = None
 
@@ -73,6 +74,9 @@ class Stream():
 
         mdata = metadata.write(mdata, (), 'table-key-properties', self.key_properties)
         mdata = metadata.write(mdata, (), 'forced-replication-method', self.replication_method)
+
+        if self.parent_stream:
+            mdata = metadata.write(mdata, (), 'parent-tap-stream-id', [self.parent_stream])
 
         if self.replication_key:
             mdata = metadata.write(mdata, (), 'valid-replication-keys', [self.replication_key])
@@ -122,10 +126,11 @@ class BillingInfo(Stream):
     replication_method = "INCREMENTAL"
     replication_key = "updated_at"
     key_properties = ["account_id"]
+    parent_stream = "accounts"
 
     # Needs its own sync function since it's bookmark is off Accounts.
     def sync(self, state):
-        get_parent = getattr(self.client, "accounts")
+        get_parent = getattr(self.client, self.parent_stream)
         get_child = getattr(self.client, self.name)
         parents = get_parent(self.replication_key, self.get_bookmark(state))
         for parent in parents:
@@ -151,28 +156,27 @@ class CouponRedemptions(Stream):
     # when the coupon redemptions are updated.
     replication_key = "created_at"
     key_properties = ["id"]
-    parent_streams = ["accounts", "subscriptions", "invoices"]
+    parent_streams = "accounts"
 
     # It has it's own sync since it uses multiple parent streams.
     def sync(self, state):
-        for stream in self.parent_streams:
-            name = f"{stream}_{self.name}"
+        name = f"{self.parent_streams}_{self.name}"
 
-            # Define get parent and child functions.
-            get_parent = getattr(self.client, stream)
-            get_child = getattr(self.client, name)
+        # Define get parent and child functions.
+        get_parent = getattr(self.client, self.parent_streams)
+        get_child = getattr(self.client, name)
 
-            # But use the specific `parent_child` bookmark.
-            parents = get_parent(self.replication_key, self.get_bookmark(state, name))
+        # But use the specific `parent_child` bookmark.
+        parents = get_parent(self.replication_key, self.get_bookmark(state, name))
 
-            for parent in parents:
-                # Use `self.replication` here because parent object is keyed on `created_at` instead
-                # of `parent.replication_key` which is `updated_at`
-                self.update_bookmark(state, parent[self.replication_key], name)
-                child_rows = get_child(parent["id"], self.replication_key)
-                for child in child_rows:
-                    yield (self.stream, child)
-            self.update_bookmark(state, None, name)
+        for parent in parents:
+            # Use `self.replication` here because parent object is keyed on `created_at` instead
+            # of `parent.replication_key` which is `updated_at`
+            self.update_bookmark(state, parent[self.replication_key], name)
+            child_rows = get_child(parent["id"], self.replication_key)
+            for child in child_rows:
+                yield (self.stream, child)
+        self.update_bookmark(state, None, name)
 
 
 class Coupons(Stream):
