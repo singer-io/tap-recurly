@@ -76,8 +76,8 @@ class Stream():
 
         if self.replication_key:
             mdata = metadata.write(mdata, (), 'valid-replication-keys', [self.replication_key])
-        
-        # CouponRedemptions stream is skipped here because it is having custom sync 
+
+        # CouponRedemptions stream is skipped here because it is having custom sync
         # implementation that handle multiple parent relationships independently.
         parent_attribute = getattr(self, "parent", None)
         if parent_attribute:
