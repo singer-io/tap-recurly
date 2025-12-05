@@ -77,10 +77,11 @@ class Stream():
         if self.replication_key:
             mdata = metadata.write(mdata, (), 'valid-replication-keys', [self.replication_key])
         
-        # Check if the stream has any parent attribute
-        parent_attribute = getattr(self, "parent_streams", None)
+        # CouponRedemptions stream is skipped here because it is having custom sync 
+        # implementation that handle multiple parent relationships independently.
+        parent_attribute = getattr(self, "parent", None)
         if parent_attribute:
-            mdata = metadata.write(mdata, (), 'parent-tap-stream-id', parent_attribute[0] if isinstance(parent_attribute, list) else parent_attribute)
+            mdata = metadata.write(mdata, (), 'parent-tap-stream-id', parent_attribute)
 
         for field_name in schema['properties'].keys():
             if field_name in self.key_properties or field_name == self.replication_key:
@@ -127,7 +128,7 @@ class BillingInfo(Stream):
     replication_method = "INCREMENTAL"
     replication_key = "updated_at"
     key_properties = ["account_id"]
-    parent_streams = "accounts"
+    parent = "accounts"
 
     # Needs its own sync function since it's bookmark is off Accounts.
     def sync(self, state):

@@ -29,6 +29,30 @@ class TestRecurly(RecurlyBaseTest):
         for c in our_catalogs:
             c_annotated = menagerie.get_annotated_schema(self.conn_id, c['stream_id'])
             c_metadata = metadata.to_map(c_annotated['metadata'])
+
+            stream = c.get('tap_stream_id')
+            stream_properties = c_metadata.get((), {})
+
+            # Get parent-tap-stream-id if present
+            actual_parent_stream_id = stream_properties.get("parent-tap-stream-id")
+        
+            expected_parent_stream_id = self.expected_metadata()[stream].get(self.PARENT_TAP_STREAM_ID)
+
+            # verify parent-tap-stream-id for child streams
+            if expected_parent_stream_id:
+                self.assertEqual(
+                    expected_parent_stream_id,
+                    actual_parent_stream_id,
+                    msg=f"expected parent-tap-stream-id is {expected_parent_stream_id} "
+                        f"but actual parent-tap-stream-id is {actual_parent_stream_id}"
+                )
+            else:
+                self.assertIsNone(
+                    actual_parent_stream_id,
+                    msg=f"parent-tap-stream-id should be None for parent stream {stream} "
+                        f" but got {actual_parent_stream_id}"
+                )
+
             connections.select_catalog_and_fields_via_metadata(self.conn_id, c, c_annotated, [], [])
 
         # Clear state before our run
