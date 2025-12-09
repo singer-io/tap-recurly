@@ -24,6 +24,39 @@ class TestRecurly(RecurlyBaseTest):
         # Run a discovery job
         self.found_catalogs = self.run_and_verify_check_mode(self.conn_id)
 
+        # Validate that all parent-tap-stream-id references point to streams
+        # that actually exist in the discovered catalog.
+        # This prevents issues like where child streams referenced non-existent parent streams
+        discovered_streams = {catalog['tap_stream_id'] for catalog in self.found_catalogs}
+        parent_streams = {}
+
+        for catalog in self.found_catalogs:
+            stream_name = catalog['tap_stream_id']
+            schema_and_metadata = menagerie.get_annotated_schema(self.conn_id, catalog['stream_id'])
+            metadata_list = schema_and_metadata["metadata"]
+            stream_properties = [item for item in metadata_list if item.get("breadcrumb") == []]
+
+            if stream_properties:
+                stream_metadata = stream_properties[0].get("metadata", {})
+                parent_id = stream_metadata.get('parent-tap-stream-id')
+                if parent_id:
+                    parent_streams[stream_name] = parent_id
+
+        # Assert all referenced parents exist in catalog
+        missing_parents = {}
+        for child_stream, parent_stream in parent_streams.items():
+            if parent_stream not in discovered_streams:
+                if parent_stream not in missing_parents:
+                    missing_parents[parent_stream] = []
+                missing_parents[parent_stream].append(child_stream)
+
+        # Assert no missing parents
+        if missing_parents:
+            error_msg = "The following parent streams are referenced but don't exist in catalog:\n"
+            for missing_parent, child_streams in missing_parents.items():
+                error_msg += f"'{missing_parent}' referenced by: {child_streams}\n"
+            self.fail(error_msg)
+
         # Match streams.
         our_catalogs = [c for c in self.found_catalogs if c.get('tap_stream_id') in self.expected_streams()]
         for c in our_catalogs:
@@ -35,7 +68,7 @@ class TestRecurly(RecurlyBaseTest):
 
             # Get parent-tap-stream-id if present
             actual_parent_stream_id = stream_properties.get("parent-tap-stream-id")
-        
+
             expected_parent_stream_id = self.expected_metadata()[stream].get(self.PARENT_TAP_STREAM_ID)
 
             # verify parent-tap-stream-id for child streams
@@ -84,7 +117,7 @@ class TestRecurly(RecurlyBaseTest):
 
         # Run a second sync job using orchestrator.
         second_sync_record_count = self.run_and_verify_sync(self.conn_id)
-        
+
         # Get data about rows synced, excluding full table streams.
         second_sync_records = runner.get_records_from_target_output()
 
