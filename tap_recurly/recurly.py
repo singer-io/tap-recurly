@@ -44,7 +44,7 @@ class Recurly():
 
 
     @backoff.on_exception(backoff.expo,
-                          requests.exceptions.RetryError,
+                          (requests.exceptions.RequestException, ValueError),
                           on_backoff=retry_handler,
                           max_tries=5)
     def _get(self, path):
@@ -60,7 +60,16 @@ class Recurly():
         limit_limit = response.headers.get('X-RateLimit-Limit')
         limit_reset_time = response.headers.get('X-RateLimit-Reset')
         self.check_rate_limit(limit_remaining, limit_limit, limit_reset_time)
-        return response.json()
+        try:
+            return response.json()
+        except ValueError:
+            logger.error(
+                "Invalid JSON response for uri=%s | status=%s | content_type=%s",
+                uri,
+                response.status_code,
+                response.headers.get("Content-Type")
+            )
+            raise
 
 
     def _get_all(self, path):
