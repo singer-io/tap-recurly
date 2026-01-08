@@ -28,7 +28,7 @@ class TestRecurly(RecurlyBaseTest):
         # that actually exist in the discovered catalog.
         # This prevents issues like where child streams referenced non-existent parent streams
         discovered_streams = {catalog['tap_stream_id'] for catalog in self.found_catalogs}
-        parent_streams = {}
+        missing_parents = {}
 
         for catalog in self.found_catalogs:
             stream_name = catalog['tap_stream_id']
@@ -39,16 +39,10 @@ class TestRecurly(RecurlyBaseTest):
             if stream_properties:
                 stream_metadata = stream_properties[0].get("metadata", {})
                 parent_id = stream_metadata.get('parent-tap-stream-id')
-                if parent_id:
-                    parent_streams[stream_name] = parent_id
-
-        # Assert all referenced parents exist in catalog
-        missing_parents = {}
-        for child_stream, parent_stream in parent_streams.items():
-            if parent_stream not in discovered_streams:
-                if parent_stream not in missing_parents:
-                    missing_parents[parent_stream] = []
-                missing_parents[parent_stream].append(child_stream)
+                if parent_id and parent_id not in discovered_streams:
+                    if parent_id not in missing_parents:
+                        missing_parents[parent_id] = []
+                    missing_parents[parent_id].append(stream_name)
 
         # Assert no missing parents
         if missing_parents:
