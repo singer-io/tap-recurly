@@ -28,57 +28,20 @@ class TestRecurly(RecurlyBaseTest):
         # that actually exist in the discovered catalog.
         # This prevents issues like where child streams referenced non-existent parent streams
         discovered_streams = {catalog['tap_stream_id'] for catalog in self.found_catalogs}
-        missing_parents = {}
-
-        for catalog in self.found_catalogs:
-            stream_name = catalog['tap_stream_id']
-            schema_and_metadata = menagerie.get_annotated_schema(self.conn_id, catalog['stream_id'])
-            metadata_list = schema_and_metadata["metadata"]
-            stream_properties = [item for item in metadata_list if item.get("breadcrumb") == []]
-
-            if stream_properties:
-                stream_metadata = stream_properties[0].get("metadata", {})
-                parent_id = stream_metadata.get('parent-tap-stream-id')
-                if parent_id and parent_id not in discovered_streams:
-                    if parent_id not in missing_parents:
-                        missing_parents[parent_id] = []
-                    missing_parents[parent_id].append(stream_name)
-
-        # Assert no missing parents
-        if missing_parents:
-            error_msg = "The following parent streams are referenced but don't exist in catalog:\n"
-            for missing_parent, child_streams in missing_parents.items():
-                error_msg += f"'{missing_parent}' referenced by: {child_streams}\n"
-            self.fail(error_msg)
 
         # Match streams.
         our_catalogs = [c for c in self.found_catalogs if c.get('tap_stream_id') in self.expected_streams()]
         for c in our_catalogs:
             c_annotated = menagerie.get_annotated_schema(self.conn_id, c['stream_id'])
             c_metadata = metadata.to_map(c_annotated['metadata'])
+            expected_parent_stream_id = self.expected_metadata()[stream].get(self.PARENT_TAP_STREAM_ID)
 
             stream = c.get('tap_stream_id')
             stream_properties = c_metadata.get((), {})
-
-            # Get parent-tap-stream-id if present
             actual_parent_stream_id = stream_properties.get("parent-tap-stream-id")
 
-            expected_parent_stream_id = self.expected_metadata()[stream].get(self.PARENT_TAP_STREAM_ID)
-
-            # verify parent-tap-stream-id for child streams
-            if expected_parent_stream_id:
-                self.assertEqual(
-                    expected_parent_stream_id,
-                    actual_parent_stream_id,
-                    msg=f"expected parent-tap-stream-id is {expected_parent_stream_id} "
-                        f"but actual parent-tap-stream-id is {actual_parent_stream_id}"
-                )
-            else:
-                self.assertIsNone(
-                    actual_parent_stream_id,
-                    msg=f"parent-tap-stream-id should be None for parent stream {stream} "
-                        f" but got {actual_parent_stream_id}"
-                )
+            self.assertIn(actual_parent_stream_id, discovered_streams)
+            self.assertEqual(actual_parent_stream_id, expected_parent_stream_id)
 
             connections.select_catalog_and_fields_via_metadata(self.conn_id, c, c_annotated, [], [])
 
