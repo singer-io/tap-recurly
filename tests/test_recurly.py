@@ -40,7 +40,9 @@ class TestRecurly(RecurlyBaseTest):
             actual_parent_stream_id = stream_properties.get("parent-tap-stream-id")
             expected_parent_stream_id = self.expected_metadata()[stream].get(self.PARENT_TAP_STREAM_ID)
 
-            self.assertIn(actual_parent_stream_id, discovered_streams)
+            if actual_parent_stream_id:
+                self.assertIn(actual_parent_stream_id, discovered_streams)
+
             self.assertEqual(actual_parent_stream_id, expected_parent_stream_id)
 
             connections.select_catalog_and_fields_via_metadata(self.conn_id, c, c_annotated, [], [])
