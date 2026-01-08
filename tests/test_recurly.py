@@ -34,11 +34,11 @@ class TestRecurly(RecurlyBaseTest):
         for c in our_catalogs:
             c_annotated = menagerie.get_annotated_schema(self.conn_id, c['stream_id'])
             c_metadata = metadata.to_map(c_annotated['metadata'])
-            expected_parent_stream_id = self.expected_metadata()[stream].get(self.PARENT_TAP_STREAM_ID)
 
             stream = c.get('tap_stream_id')
             stream_properties = c_metadata.get((), {})
             actual_parent_stream_id = stream_properties.get("parent-tap-stream-id")
+            expected_parent_stream_id = self.expected_metadata()[stream].get(self.PARENT_TAP_STREAM_ID)
 
             self.assertIn(actual_parent_stream_id, discovered_streams)
             self.assertEqual(actual_parent_stream_id, expected_parent_stream_id)
