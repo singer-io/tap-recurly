@@ -5,8 +5,8 @@
 from urllib import parse
 import logging
 import time
+import json as standard_json
 import backoff
-import json
 import requests
 from requests.auth import HTTPBasicAuth
 from requests.exceptions import JSONDecodeError as RequestsJSONDecodeError
@@ -47,7 +47,7 @@ class Recurly():
 
     @backoff.on_exception(backoff.expo,
                           (requests.exceptions.RetryError,
-                            json.JSONDecodeError,
+                            standard_json.JSONDecodeError,
                             RequestsJSONDecodeError),
                           on_backoff=retry_handler,
                           max_tries=5)
