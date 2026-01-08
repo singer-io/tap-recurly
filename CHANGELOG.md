@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.0.4
+  - Retry mechanism for the intermittent value error [#18](https://github.com/singer-io/tap-recurly/pull/18)
+
 ## 1.0.3
   - Fix miscellaneous pylint errors [#16](https://github.com/singer-io/tap-recurly/pull/16)
 
