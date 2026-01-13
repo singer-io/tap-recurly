@@ -47,8 +47,8 @@ class Recurly():
 
     @backoff.on_exception(backoff.expo,
                           (requests.exceptions.RetryError,
-                            standard_json.JSONDecodeError,
-                            RequestsJSONDecodeError),
+                           standard_json.JSONDecodeError,
+                           RequestsJSONDecodeError),
                           on_backoff=retry_handler,
                           max_tries=5)
     def _get(self, path):
