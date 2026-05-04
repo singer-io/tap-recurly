@@ -24,11 +24,27 @@ class TestRecurly(RecurlyBaseTest):
         # Run a discovery job
         self.found_catalogs = self.run_and_verify_check_mode(self.conn_id)
 
+        # Validate that all parent-tap-stream-id references point to streams
+        # that actually exist in the discovered catalog.
+        # This prevents issues like where child streams referenced non-existent parent streams
+        discovered_streams = {catalog['tap_stream_id'] for catalog in self.found_catalogs}
+
         # Match streams.
         our_catalogs = [c for c in self.found_catalogs if c.get('tap_stream_id') in self.expected_streams()]
         for c in our_catalogs:
             c_annotated = menagerie.get_annotated_schema(self.conn_id, c['stream_id'])
             c_metadata = metadata.to_map(c_annotated['metadata'])
+
+            stream = c.get('tap_stream_id')
+            stream_properties = c_metadata.get((), {})
+            actual_parent_stream_id = stream_properties.get("parent-tap-stream-id")
+            expected_parent_stream_id = self.expected_metadata()[stream].get(self.PARENT_TAP_STREAM_ID)
+
+            if actual_parent_stream_id:
+                self.assertIn(actual_parent_stream_id, discovered_streams)
+
+            self.assertEqual(actual_parent_stream_id, expected_parent_stream_id)
+
             connections.select_catalog_and_fields_via_metadata(self.conn_id, c, c_annotated, [], [])
 
         # Clear state before our run
@@ -60,7 +76,7 @@ class TestRecurly(RecurlyBaseTest):
 
         # Run a second sync job using orchestrator.
         second_sync_record_count = self.run_and_verify_sync(self.conn_id)
-        
+
         # Get data about rows synced, excluding full table streams.
         second_sync_records = runner.get_records_from_target_output()
 

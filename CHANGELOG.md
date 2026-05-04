@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.1.0
+  - Add parent-tap-stream-id field to metadata for child streams [#17](https://github.com/singer-io/tap-recurly/pull/17)
+
 ## 1.0.3
   - Fix miscellaneous pylint errors [#16](https://github.com/singer-io/tap-recurly/pull/16)
 

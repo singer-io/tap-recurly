@@ -21,6 +21,7 @@ class RecurlyBaseTest(unittest.TestCase):
     START_DATE_FORMAT = "%Y-%m-%dT00:00:00Z"
     BOOKMARK_KEY_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
     REPLICATION_KEY_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
+    PARENT_TAP_STREAM_ID = "parent-tap-stream-id"
     start_date = ""
 
     def setUp(self):
@@ -65,6 +66,7 @@ class RecurlyBaseTest(unittest.TestCase):
                 self.PRIMARY_KEYS: {"account_id"},
                 self.REPLICATION_METHOD: self.INCREMENTAL,
                 self.REPLICATION_KEYS: {"updated_at"},
+                self.PARENT_TAP_STREAM_ID: "accounts",
             },
             'coupons': {
                 self.PRIMARY_KEYS: {"id"},
