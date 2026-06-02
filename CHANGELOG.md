@@ -1,5 +1,9 @@
 # Changelog
 
+# 1.1.1
+  * Bump requests to 2.33.0 for security updates [#19](https://github.com/singer-io/tap-recurly/pull/19)
+
+
 ## 1.1.0
   - Add parent-tap-stream-id field to metadata for child streams [#17](https://github.com/singer-io/tap-recurly/pull/17)
 
