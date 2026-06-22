@@ -23,9 +23,7 @@ def _make_streams_data(stream_names=None):
 
 
 def _make_403_error():
-    response = MagicMock()
-    response.status_code = 403
-    return requests.exceptions.HTTPError(response=response)
+    return RecurlyForbiddenError("403 Forbidden")
 
 
 # ---------------------------------------------------------------------------

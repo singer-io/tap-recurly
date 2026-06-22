@@ -5,7 +5,6 @@
 import os
 import json
 import singer
-import requests
 from singer import metadata
 from singer import utils
 from dateutil.parser import parse
