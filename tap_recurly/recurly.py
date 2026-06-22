@@ -56,9 +56,10 @@ class Recurly():
                                 auth=HTTPBasicAuth(self.api_key, ''),
                                 timeout=60)
         if response.status_code == 403:
+            body_preview = (response.text or "")[:500]
             raise RecurlyForbiddenError(
                 f"403 Forbidden for url: {uri}. "
-                f"Response: {response.text}"
+                f"Response (truncated): {body_preview}"
             )
         response.raise_for_status()
 

@@ -3,7 +3,7 @@ from unittest.mock import patch, MagicMock
 import requests
 
 from tap_recurly.streams import (
-    Stream, Accounts, BillingInfo, Adjustments, CouponRedemptions,
+    Accounts, BillingInfo, Adjustments, CouponRedemptions,
     Coupons, Invoices, Plans, PlansAddOns, Subscriptions, Transactions, STREAMS
 )
 from tap_recurly.discover import discover_streams, _apply_access_checks, _prune_inaccessible_children
@@ -240,8 +240,23 @@ class TestPruneInaccessibleChildren(unittest.TestCase):
         'invoices': Invoices,
         'coupon_redemptions': CouponRedemptions,
     })
-    def test_coupon_redemptions_kept_when_one_parent_present(self):
+    def test_coupon_redemptions_pruned_when_any_parent_missing(self):
+        """coupon_redemptions is pruned if any parent stream is missing."""
         streams_data = _make_streams_data(['accounts', 'coupon_redemptions'])
+        _prune_inaccessible_children(streams_data)
+        self.assertNotIn('coupon_redemptions', streams_data)
+
+    @patch('tap_recurly.discover.STREAMS', {
+        'accounts': Accounts,
+        'subscriptions': Subscriptions,
+        'invoices': Invoices,
+        'coupon_redemptions': CouponRedemptions,
+    })
+    def test_coupon_redemptions_kept_when_all_parents_present(self):
+        """coupon_redemptions is kept only when all parents are accessible."""
+        streams_data = _make_streams_data([
+            'accounts', 'subscriptions', 'invoices', 'coupon_redemptions'
+        ])
         _prune_inaccessible_children(streams_data)
         self.assertIn('coupon_redemptions', streams_data)
 

@@ -9,7 +9,7 @@ from singer import metadata
 from singer import utils
 from dateutil.parser import parse
 from tap_recurly.context import Context
-from tap_recurly.exceptions import RecurlyForbiddenError  # pylint: disable=unused-import
+from tap_recurly.exceptions import RecurlyForbiddenError
 
 
 LOGGER = singer.get_logger()
