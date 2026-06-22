@@ -10,7 +10,7 @@ from singer import metadata
 from singer import utils
 from dateutil.parser import parse
 from tap_recurly.context import Context
-from tap_recurly.exceptions import RecurlyForbiddenError
+from tap_recurly.exceptions import RecurlyForbiddenError  # pylint: disable=unused-import
 
 
 LOGGER = singer.get_logger()
@@ -108,7 +108,7 @@ class Stream():
         path = f"sites/{self.client.site_id}/{resource}?limit=1"
 
         try:
-            self.client._get(path)
+            self.client._get(path)  # pylint: disable=protected-access
             return True
         except requests.exceptions.HTTPError as exc:
             if exc.response is not None and exc.response.status_code == 403:

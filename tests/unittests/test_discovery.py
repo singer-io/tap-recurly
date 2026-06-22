@@ -333,7 +333,8 @@ class TestLogMessages(unittest.TestCase):
         _apply_access_checks(client, streams_data)
 
         mock_logger.warning.assert_any_call(
-            "Stream '%s' excluded from catalog because its parent stream '%s' is not accessible.",
+            "Stream '%s' excluded because its parent "
+            "stream '%s' is not accessible.",
             "billing_info", "accounts",
         )
 

@@ -33,9 +33,11 @@ def _apply_access_checks(client, streams_data):
 
     if not streams_data:
         raise RecurlyForbiddenError(
-            "No streams are accessible. Ensure the credentials have read permission for at least one stream."
+            "No streams are accessible. "
+            "Ensure the credentials have read permission "
+            "for at least one stream."
         )
-    elif inaccessible_streams:
+    if inaccessible_streams:
         LOGGER.warning(
             "These streams have been excluded due to HTTP-Error-Code:403 Forbidden: %s",
             ", ".join(inaccessible_streams),
@@ -55,13 +57,17 @@ def _prune_inaccessible_children(streams_data):
 
         if parent and parent not in streams_data:
             LOGGER.warning(
-                "Stream '%s' excluded from catalog because its parent stream '%s' is not accessible.",
+                "Stream '%s' excluded because its parent "
+                "stream '%s' is not accessible.",
                 name, parent,
             )
             streams_data.pop(name, None)
-        elif parent_streams and all(p not in streams_data for p in parent_streams):
+        elif parent_streams and all(
+            p not in streams_data for p in parent_streams
+        ):
             LOGGER.warning(
-                "Stream '%s' excluded from catalog because none of its parent streams %s are accessible.",
+                "Stream '%s' excluded because none of its "
+                "parent streams %s are accessible.",
                 name, parent_streams,
             )
             streams_data.pop(name, None)
