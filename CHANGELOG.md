@@ -1,10 +1,10 @@
 # Changelog
 
-# 1.2.0
-  * Exclude unauthorized streams (403) from catalog during discovery [#20](https://github.com/singer-io/tap-recurly/pull/20)
+## 1.2.0
+  - Exclude unauthorized streams (403) from catalog during discovery [#20](https://github.com/singer-io/tap-recurly/pull/20)
 
-# 1.1.1
-  * Bump requests to 2.33.0 for security updates [#19](https://github.com/singer-io/tap-recurly/pull/19)
+## 1.1.1
+  - Bump requests to 2.33.0 for security updates [#19](https://github.com/singer-io/tap-recurly/pull/19)
 
 
 ## 1.1.0
