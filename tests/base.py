@@ -92,6 +92,7 @@ class RecurlyBaseTest(unittest.TestCase):
                 self.PRIMARY_KEYS: {"id"},
                 self.REPLICATION_METHOD: self.INCREMENTAL,
                 self.REPLICATION_KEYS: {"updated_at"},
+                self.PARENT_TAP_STREAM_ID: "plans",
             },
             'subscriptions': {  # custom fields supported
                 self.PRIMARY_KEYS: {"id"},
