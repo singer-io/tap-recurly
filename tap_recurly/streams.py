@@ -101,7 +101,7 @@ class Stream():
         Child streams always return True (access is governed by the parent check).
         Their removal from the catalog is handled separately by _prune_inaccessible_children().
         """
-        if getattr(self, 'parent', None):
+        if getattr(self, 'parent', None) or getattr(self, 'parent_streams', None):
             return True
 
         resource = getattr(self, 'api_resource', None) or self.name
@@ -178,6 +178,7 @@ class Adjustments(Stream):
     replication_method = "INCREMENTAL"
     replication_key = "updated_at"
     key_properties = ["id"]
+    api_resource = "line_items"
 
 
 class CouponRedemptions(Stream):
@@ -237,6 +238,7 @@ class PlansAddOns(Stream):
     replication_method = "INCREMENTAL"
     replication_key = "updated_at"
     key_properties = ["id"]
+    parent = "plans"
 
 
 class Subscriptions(Stream):

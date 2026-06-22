@@ -39,19 +39,17 @@ class TestCheckAccess(unittest.TestCase):
         self.assertTrue(BillingInfo(client=client).check_access())
         client._get.assert_not_called()
 
-    def test_plans_add_ons_makes_api_call(self):
-        """PlansAddOns has no parent attribute and should make the API call."""
+    def test_child_stream_plans_add_ons_returns_true(self):
+        """PlansAddOns has parent='plans' and should skip the API call."""
         client = _make_client()
-        client._get.return_value = {"data": [], "has_more": False}
         self.assertTrue(PlansAddOns(client=client).check_access())
-        client._get.assert_called_once_with("sites/subdomain-test/plans_add_ons?limit=1")
+        client._get.assert_not_called()
 
-    def test_multi_parent_coupon_redemptions_makes_api_call(self):
-        """CouponRedemptions has no parent attr, so it makes the API call."""
+    def test_multi_parent_coupon_redemptions_returns_true(self):
+        """CouponRedemptions has parent_streams and should skip the API call."""
         client = _make_client()
-        client._get.return_value = {"data": [], "has_more": False}
         self.assertTrue(CouponRedemptions(client=client).check_access())
-        client._get.assert_called_once_with("sites/subdomain-test/coupon_redemptions?limit=1")
+        client._get.assert_not_called()
 
     def test_accessible_parent_stream_returns_true(self):
         """Accounts is accessible — check_access should return True."""
@@ -88,12 +86,12 @@ class TestCheckAccess(unittest.TestCase):
         with self.assertRaises(requests.exceptions.HTTPError):
             Accounts(client=client).check_access()
 
-    def test_adjustments_uses_stream_name(self):
-        """Adjustments has no api_resource, falls back to stream name."""
+    def test_adjustments_uses_api_resource_line_items(self):
+        """Adjustments.api_resource maps to 'line_items' in the URL."""
         client = _make_client()
         client._get.return_value = {"data": [], "has_more": False}
         Adjustments(client=client).check_access()
-        client._get.assert_called_once_with("sites/subdomain-test/adjustments?limit=1")
+        client._get.assert_called_once_with("sites/subdomain-test/line_items?limit=1")
 
     def test_all_parent_streams_hit_correct_endpoints(self):
         """Verify every non-child stream builds the right path."""
@@ -101,11 +99,10 @@ class TestCheckAccess(unittest.TestCase):
         client._get.return_value = {"data": [], "has_more": False}
         expected = {
             "accounts": "sites/subdomain-test/accounts?limit=1",
-            "adjustments": "sites/subdomain-test/adjustments?limit=1",
+            "adjustments": "sites/subdomain-test/line_items?limit=1",
             "coupons": "sites/subdomain-test/coupons?limit=1",
             "invoices": "sites/subdomain-test/invoices?limit=1",
             "plans": "sites/subdomain-test/plans?limit=1",
-            "plans_add_ons": "sites/subdomain-test/plans_add_ons?limit=1",
             "subscriptions": "sites/subdomain-test/subscriptions?limit=1",
             "transactions": "sites/subdomain-test/transactions?limit=1",
         }
@@ -176,8 +173,8 @@ class TestApplyAccessChecks(unittest.TestCase):
         'plans_add_ons': PlansAddOns,
         'coupons': Coupons,
     })
-    def test_plans_and_plans_add_ons_both_forbidden(self):
-        """plans and plans_add_ons are both forbidden independently."""
+    def test_plans_forbidden_prunes_plans_add_ons(self):
+        """plans is forbidden -> plans_add_ons (child) is also removed."""
         client = _make_client()
 
         def side_effect(path):
@@ -222,11 +219,11 @@ class TestPruneInaccessibleChildren(unittest.TestCase):
         'plans': Plans,
         'plans_add_ons': PlansAddOns,
     })
-    def test_plans_add_ons_not_pruned_without_parent_attr(self):
-        """PlansAddOns has no parent attr, so it is not pruned by _prune_inaccessible_children."""
+    def test_plans_add_ons_pruned_when_plans_missing(self):
+        """PlansAddOns has parent='plans', so it is pruned when plans is missing."""
         streams_data = _make_streams_data(['plans_add_ons'])
         _prune_inaccessible_children(streams_data)
-        self.assertIn('plans_add_ons', streams_data)
+        self.assertNotIn('plans_add_ons', streams_data)
 
     @patch('tap_recurly.discover.STREAMS', {
         'accounts': Accounts,
