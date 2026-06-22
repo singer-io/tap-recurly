@@ -110,15 +110,13 @@ class Stream():
         try:
             self.client._get(path)  # pylint: disable=protected-access
             return True
-        except requests.exceptions.HTTPError as exc:
-            if exc.response is not None and exc.response.status_code == 403:
-                LOGGER.warning(
-                    "Unauthorized Stream: %s, excluding from catalog. HTTP-Error-Message:'%s'",
-                    self.name,
-                    exc,
-                )
-                return False
-            raise
+        except RecurlyForbiddenError as exc:
+            LOGGER.warning(
+                "Unauthorized Stream: %s, excluding from catalog. HTTP-Error-Message:'%s'",
+                self.name,
+                exc,
+            )
+            return False
 
 
     def is_selected(self):
