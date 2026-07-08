@@ -318,7 +318,7 @@ class TestLogMessages(unittest.TestCase):
         _apply_access_checks(client, streams_data)
 
         mock_logger.warning.assert_any_call(
-            "These streams have been excluded due to HTTP-Error-Code:403 Forbidden: %s",
+            "Unauthorized streams excluded from catalog: %s",
             "accounts",
         )
 

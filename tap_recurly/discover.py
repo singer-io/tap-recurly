@@ -3,6 +3,7 @@
 #
 
 import singer
+from tap_recurly import streams
 from tap_recurly.streams import STREAMS
 from tap_recurly.exceptions import RecurlyForbiddenError
 
@@ -29,7 +30,7 @@ def _apply_access_checks(client, streams_data):
     for stream_name in inaccessible_streams:
         streams_data.pop(stream_name, None)
 
-    _prune_inaccessible_children(streams_data)
+    inaccessible_streams.extend(_prune_inaccessible_children(streams_data))
 
     if not streams_data:
         raise RecurlyForbiddenError(
@@ -39,7 +40,7 @@ def _apply_access_checks(client, streams_data):
         )
     if inaccessible_streams:
         LOGGER.warning(
-            "These streams have been excluded due to HTTP-Error-Code:403 Forbidden: %s",
+            "Unauthorized streams excluded from catalog: %s",
             ", ".join(inaccessible_streams),
         )
 
@@ -49,6 +50,7 @@ def _prune_inaccessible_children(streams_data):
     Remove child streams from the catalog whose parent stream was excluded.
     Mutates streams_data in place.
     """
+    to_remove = []
     for name, stream_cls in list(STREAMS.items()):
         if name not in streams_data:
             continue
@@ -62,6 +64,7 @@ def _prune_inaccessible_children(streams_data):
                 name, parent,
             )
             streams_data.pop(name, None)
+            to_remove.append(name)
         elif parent_streams and any(
             p not in streams_data for p in parent_streams
         ):
@@ -72,7 +75,8 @@ def _prune_inaccessible_children(streams_data):
                 name, missing,
             )
             streams_data.pop(name, None)
-
+            to_remove.append(name)
+    return to_remove
 
 def discover_streams(client):
     streams_data = {}
