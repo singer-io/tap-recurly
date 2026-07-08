@@ -3,7 +3,6 @@
 #
 
 import singer
-from tap_recurly import streams
 from tap_recurly.streams import STREAMS
 from tap_recurly.exceptions import RecurlyForbiddenError
 
