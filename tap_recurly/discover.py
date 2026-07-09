@@ -54,12 +54,24 @@ def _prune_inaccessible_children(streams_data):
         if name not in streams_data:
             continue
         parent = getattr(stream_cls, 'parent', None)
+        parent_streams = getattr(stream_cls, 'parent_streams', None)
 
         if parent and parent not in streams_data:
             LOGGER.warning(
                 "Stream '%s' excluded because its parent "
                 "stream '%s' is not accessible.",
                 name, parent,
+            )
+            streams_data.pop(name, None)
+            to_remove.append(name)
+        elif parent_streams and any(
+            p not in streams_data for p in parent_streams
+        ):
+            missing = [p for p in parent_streams if p not in streams_data]
+            LOGGER.warning(
+                "Stream '%s' excluded because its parent "
+                "stream(s) %s are not accessible.",
+                name, missing,
             )
             streams_data.pop(name, None)
             to_remove.append(name)

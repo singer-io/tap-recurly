@@ -229,6 +229,29 @@ class TestPruneInaccessibleChildren(unittest.TestCase):
         'invoices': Invoices,
         'coupon_redemptions': CouponRedemptions,
     })
+    def test_coupon_redemptions_pruned_when_all_parents_missing(self):
+        streams_data = _make_streams_data(['coupon_redemptions'])
+        _prune_inaccessible_children(streams_data)
+        self.assertNotIn('coupon_redemptions', streams_data)
+
+    @patch('tap_recurly.discover.STREAMS', {
+        'accounts': Accounts,
+        'subscriptions': Subscriptions,
+        'invoices': Invoices,
+        'coupon_redemptions': CouponRedemptions,
+    })
+    def test_coupon_redemptions_pruned_when_any_parent_missing(self):
+        """coupon_redemptions is pruned if any parent stream is missing."""
+        streams_data = _make_streams_data(['accounts', 'coupon_redemptions'])
+        _prune_inaccessible_children(streams_data)
+        self.assertNotIn('coupon_redemptions', streams_data)
+
+    @patch('tap_recurly.discover.STREAMS', {
+        'accounts': Accounts,
+        'subscriptions': Subscriptions,
+        'invoices': Invoices,
+        'coupon_redemptions': CouponRedemptions,
+    })
     def test_coupon_redemptions_kept_when_all_parents_present(self):
         """coupon_redemptions is kept only when all parents are accessible."""
         streams_data = _make_streams_data([
@@ -330,12 +353,13 @@ class TestLogMessages(unittest.TestCase):
         'accounts': Accounts,
         'subscriptions': Subscriptions,
         'invoices': Invoices,
+        'coupon_redemptions': CouponRedemptions,
     })
     def test_all_streams_forbidden_raises_error(self, mock_logger):
         """When all streams return 403, RecurlyForbiddenError is raised."""
         client = _make_client()
         client._get.side_effect = _make_403_error()
-        streams_data = _make_streams_data(['accounts', 'subscriptions', 'invoices'])
+        streams_data = _make_streams_data(['accounts', 'subscriptions', 'invoices', 'coupon_redemptions'])
 
         with self.assertRaises(RecurlyForbiddenError):
             _apply_access_checks(client, streams_data)
