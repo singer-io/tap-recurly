@@ -8,6 +8,7 @@ import time
 import backoff
 import requests
 from requests.auth import HTTPBasicAuth
+from tap_recurly.exceptions import RecurlyForbiddenError
 
 logger = logging.getLogger()
 
@@ -54,6 +55,12 @@ class Recurly():
                                 headers=self.headers,
                                 auth=HTTPBasicAuth(self.api_key, ''),
                                 timeout=60)
+        if response.status_code == 403:
+            body_preview = (response.text or "")[:500]
+            raise RecurlyForbiddenError(
+                f"403 Forbidden for url: {uri}. "
+                f"Response (truncated): {body_preview}"
+            )
         response.raise_for_status()
 
         limit_remaining = response.headers.get('X-RateLimit-Remaining')

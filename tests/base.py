@@ -23,6 +23,7 @@ class RecurlyBaseTest(unittest.TestCase):
     REPLICATION_KEY_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
     PARENT_TAP_STREAM_ID = "parent-tap-stream-id"
     start_date = ""
+    IS_FORBIDDEN_STREAM = "is-forbidden-stream"
 
     def setUp(self):
         missing_envs = [x for x in [os.getenv('TAP_RECURLY_SUBDOMAIN'),
@@ -92,6 +93,7 @@ class RecurlyBaseTest(unittest.TestCase):
                 self.PRIMARY_KEYS: {"id"},
                 self.REPLICATION_METHOD: self.INCREMENTAL,
                 self.REPLICATION_KEYS: {"updated_at"},
+                self.PARENT_TAP_STREAM_ID: "plans",
             },
             'subscriptions': {  # custom fields supported
                 self.PRIMARY_KEYS: {"id"},
@@ -106,7 +108,11 @@ class RecurlyBaseTest(unittest.TestCase):
         }
 
     def expected_streams(self):
-        return set(self.expected_metadata().keys())
+        return {
+            stream_name
+            for stream_name, metadata in self.expected_metadata().items()
+            if not metadata.get(self.IS_FORBIDDEN_STREAM, False)
+        }
 
     def expected_primary_keys(self):
         """

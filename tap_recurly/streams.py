@@ -9,6 +9,7 @@ from singer import metadata
 from singer import utils
 from dateutil.parser import parse
 from tap_recurly.context import Context
+from tap_recurly.exceptions import RecurlyForbiddenError
 
 
 LOGGER = singer.get_logger()
@@ -92,6 +93,31 @@ class Stream():
         return metadata.to_list(mdata)
 
 
+    def check_access(self):
+        """
+        Verify that the API credentials have read access to this stream.
+        Returns True if accessible, False if a 403 Forbidden error is raised.
+        Child streams always return True (access is governed by the parent check).
+        Their removal from the catalog is handled separately by _prune_inaccessible_children().
+        """
+        if getattr(self, 'parent', None) or getattr(self, 'parent_streams', None):
+            return True
+
+        resource = getattr(self, 'api_resource', None) or self.name
+        path = f"sites/{self.client.site_id}/{resource}?limit=1"
+
+        try:
+            self.client._get(path)  # pylint: disable=protected-access
+            return True
+        except RecurlyForbiddenError as exc:
+            LOGGER.warning(
+                "Unauthorized Stream: %s, excluding from catalog. HTTP-Error-Message:'%s'",
+                self.name,
+                exc,
+            )
+            return False
+
+
     def is_selected(self):
         return self.stream is not None
 
@@ -149,6 +175,7 @@ class Adjustments(Stream):
     replication_method = "INCREMENTAL"
     replication_key = "updated_at"
     key_properties = ["id"]
+    api_resource = "line_items"
 
 
 class CouponRedemptions(Stream):
@@ -208,6 +235,7 @@ class PlansAddOns(Stream):
     replication_method = "INCREMENTAL"
     replication_key = "updated_at"
     key_properties = ["id"]
+    parent = "plans"
 
 
 class Subscriptions(Stream):
